@@ -11,7 +11,7 @@ def handler(reader, writer):
     msg = yield from reader.read(1024)
     resp = yield from app.dispatch(msg.decode('utf-8'))
 
-    writer.write(str(resp).encode('utf-8'))
+    writer.write(resp.encode('utf-8'))
     yield from writer.drain()
     writer.close()
 
