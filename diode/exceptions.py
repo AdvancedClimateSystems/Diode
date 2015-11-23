@@ -1,6 +1,13 @@
+import json
+
+
 class JSON_RPCError(Exception):
     """ Base class for JSON-RPC errors. """
-    pass
+    def to_json(self):
+        return json.dumps({
+            'code': self.code,
+            'message': self.__doc__,
+        })
 
 
 class ParseError(JSON_RPCError):

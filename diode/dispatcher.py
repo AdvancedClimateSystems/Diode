@@ -41,18 +41,6 @@ def build_json_rpc_error(error, id_=None):
     })
 
 
-def catch_exception(f):
-    def inner(*args, **kwargs):
-        try:
-            return f(*args, **kwargs)
-        except JSON_RPCError as e:
-            return build_json_rpc_error(e)
-        except Exception:
-            return build_json_rpc_error(InternalError())
-
-    return inner
-
-
 class Dispatcher(object):
     def route(self):
         """ Decorator for binding functions as JSON-RPC methods on
@@ -77,7 +65,6 @@ class Dispatcher(object):
         return inner
 
     @asyncio.coroutine
-    @catch_exception
     def dispatch(self, msg):
         """ Dispatch JSON-RPC request.
 
@@ -85,22 +72,28 @@ class Dispatcher(object):
 
         """
         try:
-            data = json.loads(msg)
-        except TypeError:
-            raise ParseError
+            try:
+                data = json.loads(msg)
+            except TypeError:
+                raise ParseError
 
-        validate_json_rpc_request(data)
+            validate_json_rpc_request(data)
 
-        try:
-            result = yield from self.execute(**data)
-        except TypeError:
-            raise InvalidParamsError
+            try:
+                result = yield from self.execute(**data)
+            except TypeError:
+                raise InvalidParamsError
 
-        try:
-            return build_json_rpc_response(result=result, id=data['id'])
-        # Server must not reply when request doesn't contain 'id' attribute.
-        except KeyError:
-            pass
+            try:
+                return build_json_rpc_response(result=result, id=data['id'])
+            # Server must not reply when request doesn't contain 'id' attribute.
+            except KeyError:
+                pass
+
+        except JSON_RPCError as e:
+            return build_json_rpc_error(e)
+        except:
+            return build_json_rpc_error(InternalError())
 
     @asyncio.coroutine
     def execute(self, jsonrpc, method, params=None, id=None):
