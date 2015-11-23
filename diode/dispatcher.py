@@ -17,8 +17,8 @@ def validate_json_rpc_request(data):
         assert isinstance(data['method'], str)
 
         # If 'params' attribute is available it must be of type list or dict.
-        assert isinstance(data.get('params', list), list)
-        assert isinstance(data.get('params', dict), dict)
+        assert isinstance(data.get('params', list), list) or \
+            isinstance(data.get('params', dict), dict)
     except (KeyError, AssertionError):
         raise InvalidRequestError
 
@@ -33,7 +33,7 @@ def build_json_rpc_response(result, id):
 
 
 def build_json_rpc_error(error, id_=None):
-    json.dumps({
+    return json.dumps({
         "jsonrpc": "2.0",
         "error": error.to_json(),
         "id": None if id_ is None else id_,
@@ -44,11 +44,13 @@ def build_json_rpc_error(error, id_=None):
 def catch_exception(f):
     def inner(*args, **kwargs):
         try:
-            f(*args, **kwargs)
+            return f(*args, **kwargs)
         except JSON_RPCError as e:
             return build_json_rpc_error(e)
         except Exception:
             return build_json_rpc_error(InternalError())
+
+    return inner
 
 
 class Dispatcher(object):
@@ -90,7 +92,7 @@ class Dispatcher(object):
         validate_json_rpc_request(data)
 
         try:
-            result = yield from self.execute(msg)
+            result = yield from self.execute(**data)
         except TypeError:
             raise InvalidParamsError
 
